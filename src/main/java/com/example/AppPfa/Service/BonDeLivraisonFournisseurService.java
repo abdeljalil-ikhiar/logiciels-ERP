@@ -4,6 +4,7 @@ import com.example.AppPfa.DAO.Entity.*;
 import com.example.AppPfa.Repository.BonDeLivraisonFournisseurRepository;
 import com.example.AppPfa.Repository.BonDeReceptionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +25,11 @@ public class BonDeLivraisonFournisseurService implements BonDeLivraisonFournisse
 
     @Autowired
     private LigneBonDeLivraisonFournisseurService ligneBonDeLivraisonService;
+
+    // ✅ AJOUT: Injection du FactureFournisseurService pour le recalcul en cascade
+    @Autowired
+    @Lazy // Éviter la dépendance circulaire
+    private FactureFournisseurService factureFournisseurService;
 
     // =============================================
     // ✅ CRÉATION
@@ -89,7 +95,9 @@ public class BonDeLivraisonFournisseurService implements BonDeLivraisonFournisse
 
             Double prixUnitaire = ligneCommande.getPrixUnitaire();
             Double quantiteReception = ligneBonDeLivraisonService.parseQuantite(ligneBonReception.getQtereception());
-            Double tauxTVA = 20.0;
+
+            // ✅ TVA depuis le Produit (comme dans BonLivraisonService)
+            Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
 
             Double ligneTotalHT = ligneBonDeLivraisonService.arrondir(prixUnitaire * quantiteReception);
             Double ligneTotalTVA = ligneBonDeLivraisonService.arrondir(ligneTotalHT * (tauxTVA / 100.0));
@@ -120,47 +128,65 @@ public class BonDeLivraisonFournisseurService implements BonDeLivraisonFournisse
     }
 
     // =============================================
-    // ✅ RECALCUL
+    // ✅ RECALCUL (CORRIGÉ)
     // =============================================
 
     @Override
     @Transactional
     public BonDeLivraisonFournisseurEntity recalculerBonLivraison(Integer idBonReception) {
+
+        // 1️⃣ Récupérer le bon de livraison
         BonDeLivraisonFournisseurEntity bonLivraison = bonDeLivraisonRepository
                 .findByBonDeReceptionEntityId(idBonReception)
                 .orElse(null);
 
-        if (bonLivraison == null) return null;
+        if (bonLivraison == null) {
+            return null;
+        }
 
+        // 2️⃣ Récupérer le bon de réception mis à jour
+        BonDeReceptionEntity bonReception = bonDeReceptionRepository.findById(idBonReception)
+                .orElseThrow(() -> new RuntimeException("Bon de réception non trouvé"));
+
+        // 3️⃣ Recalculer les totaux
         double totalHT = 0.0;
         double totalTVA = 0.0;
 
-        for (LigneBonDeLivraisonFournisseurEntity ligne : bonLivraison.getLigneBonDeLivraisonEntities()) {
-            LigneCommandeAchatsEntity ligneCommande = ligne.getLigneCommandeAchatsEntity();
-            LigneBonDeReceptionEntities ligneBonReception = ligne.getLigneBonDeReceptionEntity();
+        for (LigneBonDeLivraisonFournisseurEntity ligneBonLivraison : bonLivraison.getLigneBonDeLivraisonEntities()) {
+            LigneBonDeReceptionEntities ligneBonReception = ligneBonLivraison.getLigneBonDeReceptionEntity();
+            LigneCommandeAchatsEntity ligneCommande = ligneBonLivraison.getLigneCommandeAchatsEntity();
 
+            Double quantiteLivree = ligneBonDeLivraisonService.parseQuantite(ligneBonReception.getQtereception());
             Double prixUnitaire = ligneCommande.getPrixUnitaire();
-            Double quantiteReception = ligneBonDeLivraisonService.parseQuantite(ligneBonReception.getQtereception());
-            Double tauxTVA = 20.0;
 
-            Double ligneTotalHT = ligneBonDeLivraisonService.arrondir(prixUnitaire * quantiteReception);
-            Double ligneTotalTVA = ligneBonDeLivraisonService.arrondir(ligneTotalHT * (tauxTVA / 100.0));
-            Double ligneTotalTTC = ligneBonDeLivraisonService.arrondir(ligneTotalHT + ligneTotalTVA);
+            // ✅ TVA depuis le Produit (comme dans BonLivraisonService)
+            Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
 
-            ligne.setTotalHT(ligneTotalHT);
-            ligne.setTotalTVA(ligneTotalTVA);
-            ligne.setTotalTTC(ligneTotalTTC);
+            Double ligneTotalHT = prixUnitaire * quantiteLivree;
+            Double ligneTotalTVA = ligneTotalHT * (tauxTVA / 100.0);
+            Double ligneTotalTTC = ligneTotalHT + ligneTotalTVA;
+
+            ligneBonLivraison.setTotalHT(ligneTotalHT);
+            ligneBonLivraison.setTotalTVA(ligneTotalTVA);
+            ligneBonLivraison.setTotalTTC(ligneTotalTTC);
 
             totalHT += ligneTotalHT;
             totalTVA += ligneTotalTVA;
         }
 
-        bonLivraison.setTotalHT(ligneBonDeLivraisonService.arrondir(totalHT));
-        bonLivraison.setTotalTVA(ligneBonDeLivraisonService.arrondir(totalTVA));
-        bonLivraison.setTotalTTC(ligneBonDeLivraisonService.arrondir(totalHT + totalTVA));
+        // 4️⃣ Mettre à jour les totaux du bon de livraison
+        bonLivraison.setTotalHT(totalHT);
+        bonLivraison.setTotalTVA(totalTVA);
+        bonLivraison.setTotalTTC(totalHT + totalTVA);
         bonLivraison.setStatut(calculerStatut(bonLivraison.getLigneBonDeLivraisonEntities()));
 
-        return bonDeLivraisonRepository.save(bonLivraison);
+        // 5️⃣ Sauvegarder le bon de livraison
+        BonDeLivraisonFournisseurEntity bonLivraisonSauvegarde = bonDeLivraisonRepository.save(bonLivraison);
+
+        // 6️⃣ ✅ NOUVEAU: Recalculer la facture fournisseur associée en cascade
+        factureFournisseurService.recalculerFactureFournisseurParBonLivraison(bonLivraison.getId());
+
+        return bonLivraisonSauvegarde;
     }
 
     // =============================================

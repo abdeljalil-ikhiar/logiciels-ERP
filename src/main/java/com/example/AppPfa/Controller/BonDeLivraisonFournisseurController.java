@@ -1,5 +1,4 @@
 package com.example.AppPfa.Controller;
-
 import com.example.AppPfa.DAO.Entity.BonDeLivraisonFournisseurEntity;
 import com.example.AppPfa.Service.BonDeLivraisonFournisseurService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -18,7 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bonlivraisonfournisseur")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:3000")
 public class BonDeLivraisonFournisseurController {
 
     @Autowired

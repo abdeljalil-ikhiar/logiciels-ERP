@@ -1,4 +1,5 @@
 package com.example.AppPfa.Service;
+
 import com.example.AppPfa.DAO.Entity.*;
 import com.example.AppPfa.Repository.BonDeLivraisonFournisseurRepository;
 import com.example.AppPfa.Repository.LigneBonDeLivraisonFournisseurRepository;
@@ -78,8 +79,8 @@ public class LigneBonDeLivraisonFournisseurService implements LigneBonDeLivraiso
         // QUANTITÉ depuis RÉCEPTION
         Double quantiteReception = parseQuantite(ligneBonReception.getQtereception());
 
-        // TVA (20% par défaut)
-        Double tauxTVA = 20.0;
+        // ✅ TVA depuis le Produit (au lieu de 20.0 en dur)
+        Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
 
         // 5️⃣ CALCULS : Total = Prix Commande × Quantité Réception
         Double totalHT = arrondir(prixUnitaire * quantiteReception);
@@ -141,8 +142,27 @@ public class LigneBonDeLivraisonFournisseurService implements LigneBonDeLivraiso
         double totalTVA = 0.0;
 
         for (LigneBonDeLivraisonFournisseurEntity ligne : lignes) {
-            totalHT += ligne.getTotalHT();
-            totalTVA += ligne.getTotalTVA();
+            // ✅ Recalculer chaque ligne avec la TVA du produit
+            LigneCommandeAchatsEntity ligneCommande = ligne.getLigneCommandeAchatsEntity();
+            LigneBonDeReceptionEntities ligneBonReception = ligne.getLigneBonDeReceptionEntity();
+
+            Double prixUnitaire = ligneCommande.getPrixUnitaire();
+            Double quantiteReception = parseQuantite(ligneBonReception.getQtereception());
+
+            // ✅ TVA depuis le Produit
+            Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
+
+            Double ligneTotalHT = arrondir(prixUnitaire * quantiteReception);
+            Double ligneTotalTVA = arrondir(ligneTotalHT * (tauxTVA / 100.0));
+            Double ligneTotalTTC = arrondir(ligneTotalHT + ligneTotalTVA);
+
+            // Mettre à jour la ligne
+            ligne.setTotalHT(ligneTotalHT);
+            ligne.setTotalTVA(ligneTotalTVA);
+            ligne.setTotalTTC(ligneTotalTTC);
+
+            totalHT += ligneTotalHT;
+            totalTVA += ligneTotalTVA;
         }
 
         // Mettre à jour le bon de livraison

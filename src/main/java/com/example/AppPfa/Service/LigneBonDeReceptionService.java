@@ -13,6 +13,8 @@ public class LigneBonDeReceptionService {
 
     @Autowired
     private LigneBon_de_receptionRepository ligneRepo;
+    @Autowired
+    private BonDeLivraisonFournisseurService bonDeLivraisonFournisseurService;
 
     public LigneBonDeReceptionEntities addLigne(LigneBonDeReceptionEntities ligne) {
         return ligneRepo.save(ligne);
@@ -21,11 +23,11 @@ public class LigneBonDeReceptionService {
     public LigneBonDeReceptionEntities updateLigne(int id, LigneBonDeReceptionEntities ligne) {
         LigneBonDeReceptionEntities existing = ligneRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ligne introuvable : " + id));
-
+        Integer bondereception = existing.getBonDeReceptionEntity().getId();
         existing.setQtereception(ligne.getQtereception());
         existing.setBonDeReceptionEntity(ligne.getBonDeReceptionEntity());
         existing.setLigneCommandeAchatsEntity(ligne.getLigneCommandeAchatsEntity());
-
+        bonDeLivraisonFournisseurService.recalculerBonLivraison(bondereception);
         return ligneRepo.save(existing);
     }
 

@@ -1,7 +1,6 @@
 package com.example.AppPfa.Controller;
-
 import com.example.AppPfa.DAO.Entity.BonDeReceptionEntity;
-import com.example.AppPfa.Service.BonDeReceptionManager;
+import com.example.AppPfa.Service.BonDeReceptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,18 +13,18 @@ import java.util.List;
 public class BonDeReceptionController {
 
     @Autowired
-    private BonDeReceptionManager bonDeReceptionManager;
+    private BonDeReceptionService bonDeReceptionService;
 
     @PostMapping("/add")
     public ResponseEntity<BonDeReceptionEntity> addBonReception(@RequestBody BonDeReceptionEntity bonDeReceptionEntity) {
-        BonDeReceptionEntity saved = bonDeReceptionManager.addBonReception(bonDeReceptionEntity);
+        BonDeReceptionEntity saved = bonDeReceptionService.addBonReception(bonDeReceptionEntity);
         return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<BonDeReceptionEntity> updateBonReception(@PathVariable int id,
-                                                                   @RequestBody BonDeReceptionEntity bonDeReceptionEntity) {
-        BonDeReceptionEntity updated = bonDeReceptionManager.updateBonReception(id, bonDeReceptionEntity);
+                                                                   @RequestBody BonDeReceptionEntity bonReception) {
+        BonDeReceptionEntity updated = bonDeReceptionService.updateBonReception(id, bonReception);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
@@ -34,18 +33,13 @@ public class BonDeReceptionController {
 
     @GetMapping("/all")
     public ResponseEntity<List<BonDeReceptionEntity>> getAllBonReception() {
-        return ResponseEntity.ok(bonDeReceptionManager.getAllBonReception());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<BonDeReceptionEntity> getBonReceptionById(@PathVariable int id) {
-        BonDeReceptionEntity bon = bonDeReceptionManager.getBonReceptionById(id);
-        return (bon == null) ? ResponseEntity.notFound().build() : ResponseEntity.ok(bon);
+        List<BonDeReceptionEntity> list = bonDeReceptionService.getAllBonReception();
+        return ResponseEntity.ok(list);
     }
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> deleteBonReception(@PathVariable int id) {
-        bonDeReceptionManager.deleteBonReception(id);
+        bonDeReceptionService.deleteBonReception(id);
         return ResponseEntity.noContent().build();
     }
 }

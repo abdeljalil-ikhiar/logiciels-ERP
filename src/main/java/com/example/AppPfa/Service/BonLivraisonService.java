@@ -148,7 +148,7 @@ public class BonLivraisonService implements BonLivraisonManager {
         return bonLivraisonSauvegarde;
     }
 
-    // ... autres méthodes inchangées ...
+
 
     @Override
     @Transactional(readOnly = true)

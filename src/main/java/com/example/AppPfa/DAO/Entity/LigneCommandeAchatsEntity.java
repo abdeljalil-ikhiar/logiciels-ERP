@@ -45,4 +45,8 @@ public class LigneCommandeAchatsEntity {
     @JsonIgnore
     @ToString.Exclude
     private List<LigneBonDeReceptionEntities> ligneBonDeReceptionEntities = new ArrayList<>();
+    @OneToMany(mappedBy = "ligneCommandeAchatsEntity", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<LigneBonDeLivraisonFournisseurEntity> ligneBonDeLivraisonFournisseurEntities = new ArrayList<>();
 }

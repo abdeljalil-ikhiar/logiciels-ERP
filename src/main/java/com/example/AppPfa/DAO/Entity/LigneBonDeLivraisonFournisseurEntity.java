@@ -5,44 +5,57 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "ligne_bon_de_livraison_fournisseur")
+@Table(name = "ligne_bon_livraison_fournisseur")
 public class LigneBonDeLivraisonFournisseurEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    // ✅ Relation avec BonDeLivraisonFournisseur
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bon_livraison_fournisseur_id", nullable = false)
     @JsonIgnore
     @ToString.Exclude
     private BonDeLivraisonFournisseurEntity bonDeLivraisonFournisseurEntity;
 
-    // ✅ Référence vers LigneBonDeReception
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_bon_reception_id")
-    @JsonIgnoreProperties({"bonDeReceptionEntity", "ligneCommandeAchatsEntity"})
+    @JsonIgnoreProperties({"bonDeReceptionEntity"})
     private LigneBonDeReceptionEntities ligneBonDeReceptionEntity;
 
-    // ✅ Référence vers LigneCommandeAchats
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_commande_achats_id")
-    @JsonIgnoreProperties({"commandeAchatsEntity", "ligneBonDeReceptionEntities"})
+    @JsonIgnoreProperties({"commandeAchatsEntity"})
     private LigneCommandeAchatsEntity ligneCommandeAchatsEntity;
 
-    // ✅ Totaux calculés
+    @OneToMany(
+            mappedBy = "ligneBonDeLivraisonFournisseurEntity",  // ✅ Corrigé
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JsonIgnoreProperties({"ligneBonDeLivraisonFournisseurEntity"})
+    @ToString.Exclude
+    @Builder.Default
+    private List<LigneFactureFournisseurEntity> ligneFactureFournisseurEntities = new ArrayList<>();
+
     @Column(nullable = false)
+    @Builder.Default
     private Double totalHT = 0.0;
 
     @Column(nullable = false)
+    @Builder.Default
     private Double totalTVA = 0.0;
 
     @Column(nullable = false)
+    @Builder.Default
     private Double totalTTC = 0.0;
 }

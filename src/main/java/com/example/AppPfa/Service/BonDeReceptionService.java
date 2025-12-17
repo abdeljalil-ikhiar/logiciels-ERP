@@ -18,6 +18,8 @@ public class BonDeReceptionService implements BonDeReceptionManager {
 
     @Autowired
     private BonDeReceptionRepository bonDeReceptionRepository;
+    @Autowired
+    private BonDeLivraisonFournisseurService bonDeLivraisonFournisseurService;
 
     private static final String PREFIX = "BR-";
     private static final String DATE_FORMAT = "yyyyMMdd";
@@ -55,7 +57,7 @@ public class BonDeReceptionService implements BonDeReceptionManager {
         existing.setDate(bonDeReceptionEntity.getDate());
         existing.setCommandeAchatsEntity(bonDeReceptionEntity.getCommandeAchatsEntity());
 
-        // Remplacer les lignes
+        // 1. Remplacer les lignes
         existing.getLigneBonDeReceptionEntities().clear();
         if (bonDeReceptionEntity.getLigneBonDeReceptionEntities() != null) {
             for (LigneBonDeReceptionEntities ligne : bonDeReceptionEntity.getLigneBonDeReceptionEntities()) {
@@ -64,8 +66,21 @@ public class BonDeReceptionService implements BonDeReceptionManager {
             }
         }
 
-        return bonDeReceptionRepository.save(existing);
+        // 2. 🔥 Très important : Sauvegardez d'abord pour persister les changements en base de données
+        BonDeReceptionEntity savedEntity = bonDeReceptionRepository.save(existing);
+
+        // 3. Ensuite, lancez le recalcul de manière sécurisée
+        try {
+            bonDeLivraisonFournisseurService.recalculerBonLivraison(id);
+        } catch (Exception e) {
+            // Log l'erreur mais ne bloque pas la transaction si le BL n'existe pas
+            System.err.println("Avertissement : Le recalcul du Bon de Livraison a échoué pour le BR " + id + ": " + e.getMessage());
+        }
+
+        return savedEntity;
     }
+
+
 
     // 📌 Liste
     @Override

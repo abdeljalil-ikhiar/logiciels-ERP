@@ -14,7 +14,7 @@ public class DepotService implements DepotManager {
 
     @Override
     public DepotEntity AddDepot(DepotEntity depotEntity) {
-        // ✅ الحل: throw exception باش نوقفو العملية
+
         if (depotRepository.existsByNomdepot(depotEntity.getNomdepot())) {
             throw new RuntimeException();
         }
@@ -23,14 +23,12 @@ public class DepotService implements DepotManager {
 
     @Override
     public DepotEntity UpdateDepot(int id, DepotEntity depotEntity) {
-        // ✅ استخدم orElseThrow بدل orElse
         DepotEntity existing = depotRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("❌ Dépôt introuvable avec l'id: " + id));
+                .orElseThrow(() -> new RuntimeException(" Dépôt introuvable avec l'id: " + id));
 
-        // ✅ تحقق من التكرار في Update
         if (!existing.getNomdepot().equals(depotEntity.getNomdepot()) &&
                 depotRepository.existsByNomdepot(depotEntity.getNomdepot())) {
-            throw new RuntimeException("❌ Le dépôt '" + depotEntity.getNomdepot() + "' existe déjà!");
+            throw new RuntimeException(" Le dépôt '" + depotEntity.getNomdepot() + "' existe déjà!");
         }
 
         existing.setNomdepot(depotEntity.getNomdepot());
@@ -43,7 +41,7 @@ public class DepotService implements DepotManager {
     public void DeletDepot(int id) {
 
         if (!depotRepository.existsById(id)) {
-            throw new RuntimeException("❌ Dépôt introuvable avec l'id: " + id);
+            throw new RuntimeException(" Dépôt introuvable avec l'id: " + id);
         }
         depotRepository.deleteById(id);
     }
@@ -53,9 +51,9 @@ public class DepotService implements DepotManager {
         return depotRepository.findAll();
     }
 
-    // ✅ زدت method جديد
+
     public DepotEntity getDepotById(int id) {
         return depotRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("❌ Dépôt introuvable avec l'id: " + id));
+                .orElseThrow(() -> new RuntimeException(" Dépôt introuvable avec l'id: " + id));
     }
 }

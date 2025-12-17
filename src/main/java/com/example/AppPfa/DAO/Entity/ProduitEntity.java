@@ -51,4 +51,14 @@ public class ProduitEntity {
     @ToString.Exclude
     @JsonIgnore
     private List<LigneCommandeAchatsEntity> ligneCommandeAchatsEntities;
+    @OneToMany(
+            mappedBy = "produit",
+            cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY,
+            orphanRemoval = true
+    )
+    @ToString.Exclude
+    @JsonIgnore
+    private List<LigneInventaireEntity> ligneInventaireEntities;
+
 }
