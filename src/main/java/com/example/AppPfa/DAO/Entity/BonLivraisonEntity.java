@@ -1,6 +1,7 @@
 // BonLivraisonEntity.java
 package com.example.AppPfa.DAO.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,7 +31,7 @@ public class BonLivraisonEntity {
     // ✅ Owning side - pas de cascade vers BonSortie
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "bon_sortie_id", nullable = false, unique = true)
-    @JsonIgnoreProperties({"bonLivraison", "ligneBonSortieEntities", "commandeEntity"})
+    @JsonIgnoreProperties({"bonLivraison", "ligneBonSortieEntities"})
     private BonSortieEntity bonSortie;
 
     // ✅ Cascade ALL + orphanRemoval pour supprimer les lignes automatiquement
@@ -57,4 +58,10 @@ public class BonLivraisonEntity {
 
     @Column(nullable = false)
     private Double totalTTC = 0.0;
+
+
+    @OneToMany(mappedBy = "bonLivraison", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<RetourProduitEntity> retoursProduit;
 }

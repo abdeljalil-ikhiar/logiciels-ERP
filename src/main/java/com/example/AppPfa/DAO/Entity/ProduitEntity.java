@@ -47,18 +47,40 @@ public class ProduitEntity {
     @JsonIgnore
     @ToString.Exclude
     private List<LigneBonSortieEntity> ligneBonSortieEchange;
+
     @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @ToString.Exclude
     @JsonIgnore
     private List<LigneCommandeAchatsEntity> ligneCommandeAchatsEntities;
-    @OneToMany(
-            mappedBy = "produit",
-            cascade = CascadeType.ALL,
-            fetch = FetchType.LAZY,
-            orphanRemoval = true
-    )
+
+    @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @ToString.Exclude
     @JsonIgnore
     private List<LigneInventaireEntity> ligneInventaireEntities;
 
+    @OneToMany(mappedBy = "produit", fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @JsonIgnore
+    private List<EtatduStock> etatduStocks;
+
+
+    @OneToMany(mappedBy = "produit", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<LigneRetourEntity> lignesRetour;
+
+    @OneToMany(mappedBy = "produitEchange", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<LigneRetourEntity> lignesRetourEchange;
+
+    @OneToMany(mappedBy = "produit", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<LigneAvoirEntity> lignesAvoir;
+
+    @OneToMany(mappedBy = "produit", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<MouvementStockEntity> mouvementsStock;
 }

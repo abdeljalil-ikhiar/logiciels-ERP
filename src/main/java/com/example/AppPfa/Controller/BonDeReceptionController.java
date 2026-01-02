@@ -1,4 +1,5 @@
 package com.example.AppPfa.Controller;
+
 import com.example.AppPfa.DAO.Entity.BonDeReceptionEntity;
 import com.example.AppPfa.Service.BonDeReceptionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,17 @@ public class BonDeReceptionController {
     public ResponseEntity<List<BonDeReceptionEntity>> getAllBonReception() {
         List<BonDeReceptionEntity> list = bonDeReceptionService.getAllBonReception();
         return ResponseEntity.ok(list);
+    }
+
+    // ✅ AJOUTÉ - Endpoint GET par ID
+    @GetMapping("/{id}")
+    public ResponseEntity<BonDeReceptionEntity> getBonReceptionById(@PathVariable int id) {
+        try {
+            BonDeReceptionEntity br = bonDeReceptionService.getBonReceptionById(id);
+            return ResponseEntity.ok(br);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/delete/{id}")

@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/produit")
-@CrossOrigin(origins = "http://localhost:3000") // autorise ton app React
+@CrossOrigin(origins = "http://localhost:3000")
 public class ProduitController {
     @Autowired
     private ProduitService produitService;

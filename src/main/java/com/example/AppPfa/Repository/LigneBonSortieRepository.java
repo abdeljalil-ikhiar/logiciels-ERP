@@ -19,4 +19,13 @@ public interface LigneBonSortieRepository extends JpaRepository<LigneBonSortieEn
      */
     @Query("SELECT COUNT(lbs) FROM LigneBonSortieEntity lbs WHERE lbs.bonSortie.id = :bonSortieId")
     Long countByBonSortieId(@Param("bonSortieId") Integer bonSortieId);
+
+    @Query("SELECT COALESCE(SUM(l.quantiteSortie), 0) FROM LigneBonSortieEntity l " +
+            "WHERE l.ligneCommande.produit.id = :produitId AND l.produitEchange IS NULL")
+    Double sumSortiesNormales(@Param("produitId") Integer produitId);
+
+    @Query("SELECT COALESCE(SUM(l.quantiteSortie), 0) FROM LigneBonSortieEntity l " +
+            "WHERE l.produitEchange.id = :produitId")
+    Double sumSortiesEchangees(@Param("produitId") Integer produitId);
+
 }

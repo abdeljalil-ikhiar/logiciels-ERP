@@ -45,4 +45,14 @@ public class ClientEntity {
     @ToString.Exclude
     @JsonIgnoreProperties("client")
     private List<CommandeEntity> commandeEntities;
+
+
+
+    @OneToMany(mappedBy = "client", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<RetourProduitEntity> retoursProduit;
+
+    @OneToMany(mappedBy = "client", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<AvoirEntity> avoirs;
 }

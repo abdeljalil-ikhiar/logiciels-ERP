@@ -37,4 +37,12 @@ public class FournisseurEntity {
     @OneToMany(mappedBy = "fournisseurEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @JsonIgnore
     private List<CommandeAchatsEntity> commandeAchatsEntities;
+
+    @OneToMany(mappedBy = "fournisseur", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<RetourProduitEntity> retoursProduit;
+
+    @OneToMany(mappedBy = "fournisseur", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<AvoirEntity> avoirs;
 }

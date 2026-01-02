@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/clients")
-@CrossOrigin(origins = "http://localhost:3000") // autorise ton app React
+@CrossOrigin(origins = "http://localhost:3000")
 public class ClientController {
 
     @Autowired
