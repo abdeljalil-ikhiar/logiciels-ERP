@@ -27,6 +27,7 @@ public class LigneDevisService implements LigneDevisManager {
         existing.setProduit(ligneDevisEntity.getProduit());
         existing.setQuantite(ligneDevisEntity.getQuantite());
         existing.setPrixUnitaire(ligneDevisEntity.getPrixUnitaire());
+        existing.setRemisePourcentage(ligneDevisEntity.getRemisePourcentage()); // mise à jour remise
 
         // recalcul automatique
         calculerTotalLigne(existing);
@@ -47,8 +48,19 @@ public class LigneDevisService implements LigneDevisManager {
     @Override
     public void calculerTotalLigne(LigneDevisEntity ligne) {
         if (ligne.getProduit() != null) {
+            // Calcul HT avant remise
             double totalHT = ligne.getPrixUnitaire() * ligne.getQuantite();
+
+            // Appliquer remise %
+            Double remise = ligne.getRemisePourcentage() != null ? ligne.getRemisePourcentage() : 0.0;
+            if (remise < 0) remise = 0.0;
+            if (remise > 100) remise = 100.0;
+            totalHT = totalHT - (totalHT * remise / 100);
+
+            // Calcul TTC avec TVA du produit
             double totalTTC = totalHT * (1 + ligne.getProduit().getTva() / 100);
+
+            // Mettre à jour l'entité
             ligne.setTotalHT(totalHT);
             ligne.setTotalTTC(totalTTC);
         }

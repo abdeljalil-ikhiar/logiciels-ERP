@@ -42,4 +42,6 @@ public class DevisEntity {
 
     @Column(nullable = false)
     private Double totalTTC = 0.0;
+    @Column(nullable = false)
+    private Double totalRemise = 0.0;
 }

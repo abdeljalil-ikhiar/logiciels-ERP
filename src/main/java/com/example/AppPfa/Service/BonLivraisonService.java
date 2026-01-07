@@ -21,13 +21,12 @@ public class BonLivraisonService implements BonLivraisonManager {
     @Autowired
     private BonSortieRepository bonSortieRepository;
 
-    // ✅ AJOUT: Injection du FactureService pour le recalcul en cascade
     @Autowired
-    @Lazy // Éviter la dépendance circulaire
+    @Lazy
     private FactureService factureService;
 
     /**
-     * Créer un bon de livraison à partir d'un bon de sortie
+     * ✅ Créer un bon de livraison avec remise
      */
     @Override
     @Transactional
@@ -53,49 +52,68 @@ public class BonLivraisonService implements BonLivraisonManager {
                 .totalHT(0.0)
                 .totalTVA(0.0)
                 .totalTTC(0.0)
+                .totalRemise(0.0)
                 .build();
 
         // 5️⃣ Créer les lignes du bon de livraison
         double totalHT = 0.0;
         double totalTVA = 0.0;
+        double totalRemise = 0.0;
 
         for (LigneBonSortieEntity ligneBonSortie : bonSortie.getLigneBonSortieEntities()) {
             LigneCommandeEntity ligneCommande = ligneBonSortie.getLigneCommande();
 
-            Double quantiteLivree = ligneBonSortie.getQuantiteSortie();
-            Double prixUnitaire = ligneCommande.getPrixUnitaire();
-            Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
+            // Récupérer les valeurs
+            Double quantiteLivree = ligneBonSortie.getQuantiteSortie() != null
+                    ? ligneBonSortie.getQuantiteSortie() : 0.0;
+            Double prixUnitaire = ligneCommande.getPrixUnitaire() != null
+                    ? ligneCommande.getPrixUnitaire() : 0.0;
+            Double tauxTVA = ligneCommande.getProduit() != null && ligneCommande.getProduit().getTva() != null
+                    ? ligneCommande.getProduit().getTva() : 0.0;
 
-            Double ligneTotalHT = prixUnitaire * quantiteLivree;
+            // ✅ Récupérer la remise depuis la ligne de commande
+            Double remisePourcentage = ligneCommande.getRemisePourcentage() != null
+                    ? ligneCommande.getRemisePourcentage() : 0.0;
+
+            // ✅ Calcul avec remise
+            Double htBrut = prixUnitaire * quantiteLivree;
+            Double montantRemise = htBrut * (remisePourcentage / 100.0);
+            Double ligneTotalHT = htBrut - montantRemise;
             Double ligneTotalTVA = ligneTotalHT * (tauxTVA / 100.0);
             Double ligneTotalTTC = ligneTotalHT + ligneTotalTVA;
 
+            // Créer la ligne
             LigneBonLivraisonEntity ligneBonLivraison = LigneBonLivraisonEntity.builder()
                     .ligneBonSortie(ligneBonSortie)
                     .ligneCommande(ligneCommande)
                     .bonLivraison(bonLivraison)
-                    .totalHT(ligneTotalHT)
-                    .totalTVA(ligneTotalTVA)
-                    .totalTTC(ligneTotalTTC)
+                    .totalHT(arrondir(ligneTotalHT))
+                    .totalTVA(arrondir(ligneTotalTVA))
+                    .totalTTC(arrondir(ligneTotalTTC))
+                    .remiseAppliquee(remisePourcentage)
+                    .montantRemise(arrondir(montantRemise))
                     .build();
 
             bonLivraison.getLignesBonLivraison().add(ligneBonLivraison);
 
             totalHT += ligneTotalHT;
             totalTVA += ligneTotalTVA;
+            totalRemise += montantRemise;
         }
 
         // 6️⃣ Mettre à jour les totaux
-        bonLivraison.setTotalHT(totalHT);
-        bonLivraison.setTotalTVA(totalTVA);
-        bonLivraison.setTotalTTC(totalHT + totalTVA);
+        bonLivraison.setTotalHT(arrondir(totalHT));
+        bonLivraison.setTotalTVA(arrondir(totalTVA));
+        bonLivraison.setTotalTTC(arrondir(totalHT + totalTVA));
+        bonLivraison.setTotalRemise(arrondir(totalRemise));
 
         return bonLivraisonRepository.save(bonLivraison);
     }
 
     /**
-     * ✅ MISE À JOUR: Recalculer les totaux avec cascade vers la facture
+     * ✅ Recalculer un bon de livraison avec remise
      */
+    @Override
     @Transactional
     public BonLivraisonEntity recalculerBonLivraison(Integer idBonSortie) {
         // 1️⃣ Récupérer le bon de livraison
@@ -106,49 +124,60 @@ public class BonLivraisonService implements BonLivraisonManager {
             return null;
         }
 
-        // 2️⃣ Récupérer le bon de sortie mis à jour
-        BonSortieEntity bonSortie = bonSortieRepository.findById(idBonSortie)
-                .orElseThrow(() -> new RuntimeException("Bon de sortie non trouvé"));
-
-        // 3️⃣ Recalculer les totaux
+        // 2️⃣ Recalculer les totaux
         double totalHT = 0.0;
         double totalTVA = 0.0;
+        double totalRemise = 0.0;
 
         for (LigneBonLivraisonEntity ligneBonLivraison : bonLivraison.getLignesBonLivraison()) {
             LigneBonSortieEntity ligneBonSortie = ligneBonLivraison.getLigneBonSortie();
             LigneCommandeEntity ligneCommande = ligneBonLivraison.getLigneCommande();
 
-            Double quantiteLivree = ligneBonSortie.getQuantiteSortie();
-            Double prixUnitaire = ligneCommande.getPrixUnitaire();
-            Double tauxTVA = ligneCommande.getProduit().getTva().doubleValue();
+            // Récupérer les valeurs
+            Double quantiteLivree = ligneBonSortie.getQuantiteSortie() != null
+                    ? ligneBonSortie.getQuantiteSortie() : 0.0;
+            Double prixUnitaire = ligneCommande.getPrixUnitaire() != null
+                    ? ligneCommande.getPrixUnitaire() : 0.0;
+            Double tauxTVA = ligneCommande.getProduit() != null && ligneCommande.getProduit().getTva() != null
+                    ? ligneCommande.getProduit().getTva() : 0.0;
 
-            Double ligneTotalHT = prixUnitaire * quantiteLivree;
+            // ✅ Récupérer la remise depuis la ligne de commande
+            Double remisePourcentage = ligneCommande.getRemisePourcentage() != null
+                    ? ligneCommande.getRemisePourcentage() : 0.0;
+
+            // ✅ Calcul avec remise
+            Double htBrut = prixUnitaire * quantiteLivree;
+            Double montantRemise = htBrut * (remisePourcentage / 100.0);
+            Double ligneTotalHT = htBrut - montantRemise;
             Double ligneTotalTVA = ligneTotalHT * (tauxTVA / 100.0);
             Double ligneTotalTTC = ligneTotalHT + ligneTotalTVA;
 
-            ligneBonLivraison.setTotalHT(ligneTotalHT);
-            ligneBonLivraison.setTotalTVA(ligneTotalTVA);
-            ligneBonLivraison.setTotalTTC(ligneTotalTTC);
+            // Mettre à jour la ligne
+            ligneBonLivraison.setTotalHT(arrondir(ligneTotalHT));
+            ligneBonLivraison.setTotalTVA(arrondir(ligneTotalTVA));
+            ligneBonLivraison.setTotalTTC(arrondir(ligneTotalTTC));
+            ligneBonLivraison.setRemiseAppliquee(remisePourcentage);
+            ligneBonLivraison.setMontantRemise(arrondir(montantRemise));
 
             totalHT += ligneTotalHT;
             totalTVA += ligneTotalTVA;
+            totalRemise += montantRemise;
         }
 
-        // 4️⃣ Mettre à jour les totaux du bon de livraison
-        bonLivraison.setTotalHT(totalHT);
-        bonLivraison.setTotalTVA(totalTVA);
-        bonLivraison.setTotalTTC(totalHT + totalTVA);
+        // 3️⃣ Mettre à jour les totaux du bon de livraison
+        bonLivraison.setTotalHT(arrondir(totalHT));
+        bonLivraison.setTotalTVA(arrondir(totalTVA));
+        bonLivraison.setTotalTTC(arrondir(totalHT + totalTVA));
+        bonLivraison.setTotalRemise(arrondir(totalRemise));
 
-        // 5️⃣ Sauvegarder le bon de livraison
+        // 4️⃣ Sauvegarder
         BonLivraisonEntity bonLivraisonSauvegarde = bonLivraisonRepository.save(bonLivraison);
 
-        // 6️⃣ ✅ NOUVEAU: Recalculer la facture associée en cascade
+        // 5️⃣ Recalculer la facture associée en cascade
         factureService.recalculerFactureParBonLivraison(bonLivraison.getId());
 
         return bonLivraisonSauvegarde;
     }
-
-
 
     @Override
     @Transactional(readOnly = true)
@@ -185,8 +214,18 @@ public class BonLivraisonService implements BonLivraisonManager {
         bonLivraisonRepository.deleteById(id);
     }
 
+    /**
+     * Générer le numéro du bon de livraison
+     */
     private String genererNumeroBonLivraison() {
         long count = bonLivraisonRepository.count();
         return String.format("BL-%d-%05d", LocalDate.now().getYear(), count + 1);
+    }
+
+    /**
+     * Arrondir à 2 décimales
+     */
+    private double arrondir(double valeur) {
+        return Math.round(valeur * 100.0) / 100.0;
     }
 }

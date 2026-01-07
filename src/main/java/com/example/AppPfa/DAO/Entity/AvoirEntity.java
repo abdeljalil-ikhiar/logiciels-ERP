@@ -30,38 +30,32 @@ public class AvoirEntity {
     @Column(nullable = false)
     private TypeAvoir typeAvoir;
 
-    // ✅ Client (pour avoir client)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "client_id")
     @JsonIgnoreProperties({"avoirs", "commandeEntities", "devisEntities", "retoursProduit"})
     private ClientEntity client;
 
-    // ✅ Fournisseur (pour avoir fournisseur)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "fournisseur_id")
     @JsonIgnoreProperties({"commandeAchatsEntities", "retoursProduit", "avoirs"})
     private FournisseurEntity fournisseur;
 
-    // ✅ Retour Produit lié (origine de l'avoir)
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "retour_produit_id")
     @JsonIgnoreProperties({"avoir", "lignesRetour", "mouvementsStock"})
     @ToString.Exclude
     private RetourProduitEntity retourProduit;
 
-    // ✅ Facture d'origine (pour avoir client)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "facture_id")
     @JsonIgnoreProperties({"lignesFacture", "bonLivraison"})
     private FactureEntity facture;
 
-    // ✅ Facture fournisseur d'origine (pour avoir fournisseur)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "facture_fournisseur_id")
     @JsonIgnoreProperties({"ligneFactureFournisseurEntities", "bonDeLivraisonFournisseurEntity"})
     private FactureFournisseurEntity factureFournisseur;
 
-    // ✅ Lignes d'avoir
     @OneToMany(mappedBy = "avoir", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties({"avoir"})
     @Builder.Default
@@ -80,6 +74,11 @@ public class AvoirEntity {
     @Builder.Default
     private Double totalTTC = 0.0;
 
+    // ✅ NOUVEAU: Total des remises
+    @Column(nullable = false)
+    @Builder.Default
+    private Double totalRemise = 0.0;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private StatutAvoir statut = StatutAvoir.EN_ATTENTE;
@@ -87,7 +86,6 @@ public class AvoirEntity {
     @Column(length = 500)
     private String commentaire;
 
-    // ✅ Enums
     public enum TypeAvoir {
         AVOIR_CLIENT,
         AVOIR_FOURNISSEUR

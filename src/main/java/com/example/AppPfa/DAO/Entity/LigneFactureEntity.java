@@ -16,20 +16,17 @@ public class LigneFactureEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    // ✅ Relation principale avec Facture
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "facture_id", nullable = false)
     @JsonIgnoreProperties({"lignesFacture", "bonLivraison"})
     @ToString.Exclude
     private FactureEntity facture;
 
-    // ✅ Référence vers LigneBonLivraison (sans cascade inverse)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_bon_livraison_id")
     @JsonIgnoreProperties({"lignesFacture", "bonLivraison"})
     private LigneBonLivraisonEntity ligneBonLivraison;
 
-    // ✅ Référence vers LigneCommande (sans cascade inverse)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_commande_id")
     @JsonIgnoreProperties({"lignesFacture", "lignesBonLivraison", "commandeEntity"})
@@ -43,4 +40,12 @@ public class LigneFactureEntity {
 
     @Column(nullable = false)
     private Double totalTTC = 0.0;
+
+    // ✅ NOUVEAU: Remise appliquée
+    @Column(nullable = false)
+    private Double remiseAppliquee = 0.0;
+
+    // ✅ NOUVEAU: Montant de la remise
+    @Column(nullable = false)
+    private Double montantRemise = 0.0;
 }

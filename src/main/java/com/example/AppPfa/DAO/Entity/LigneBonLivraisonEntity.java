@@ -1,4 +1,3 @@
-// LigneBonLivraisonEntity.java
 package com.example.AppPfa.DAO.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -20,20 +19,17 @@ public class LigneBonLivraisonEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    // ✅ Relation principale avec BonLivraison
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bon_livraison_id", nullable = false)
     @JsonIgnoreProperties({"lignesBonLivraison", "bonSortie"})
     @ToString.Exclude
     private BonLivraisonEntity bonLivraison;
 
-    // ✅ Référence vers LigneBonSortie (sans cascade inverse)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_bon_sortie_id")
     @JsonIgnoreProperties({"lignesBonLivraison", "bonSortie"})
     private LigneBonSortieEntity ligneBonSortie;
 
-    // ✅ Référence vers LigneCommande (sans cascade inverse)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ligne_commande_id")
     @JsonIgnoreProperties({"lignesBonLivraison", "lignesBonSortie", "commandeEntity"})
@@ -57,4 +53,12 @@ public class LigneBonLivraisonEntity {
 
     @Column(nullable = false)
     private Double totalTTC = 0.0;
+
+    // ✅ NOUVEAU: Stocker la remise appliquée pour traçabilité
+    @Column(nullable = false)
+    private Double remiseAppliquee = 0.0;
+
+    // ✅ NOUVEAU: Montant de la remise
+    @Column(nullable = false)
+    private Double montantRemise = 0.0;
 }

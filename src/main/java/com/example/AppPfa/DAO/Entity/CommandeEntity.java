@@ -38,12 +38,15 @@ public class CommandeEntity {
     @Column(nullable = false)
     private Double totalTTC = 0.0;
 
+    @Column(nullable = false)
+    private Double totalRemise = 0.0;
+
     @OneToMany(mappedBy = "commandeEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @ToString.Exclude
     private List<LigneCommandeEntity> lignesCommande = new ArrayList<>();
 
     @OneToMany(mappedBy = "commandeEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore  // Ajouté pour éviter les cycles JSON avec BonSortieEntity
+    @JsonIgnore
     @ToString.Exclude
     private List<BonSortieEntity> bonSortieEntities = new ArrayList<>();
 }

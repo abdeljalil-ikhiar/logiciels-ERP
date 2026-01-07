@@ -1,4 +1,5 @@
 package com.example.AppPfa.Service;
+
 import com.example.AppPfa.DAO.Entity.*;
 import com.example.AppPfa.Repository.FactureRepository;
 import com.example.AppPfa.Repository.LigneBonLivraisonRepository;
@@ -6,6 +7,7 @@ import com.example.AppPfa.Repository.LigneFactureRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -20,9 +22,6 @@ public class LigneFactureService implements LigneFactureManager {
     @Autowired
     private LigneBonLivraisonRepository ligneBonLivraisonRepository;
 
-    /**
-     * Récupérer une ligne de facture par ID
-     */
     @Override
     @Transactional(readOnly = true)
     public LigneFactureEntity getLigneFactureById(Integer id) {
@@ -30,18 +29,12 @@ public class LigneFactureService implements LigneFactureManager {
                 .orElseThrow(() -> new RuntimeException("Ligne de facture introuvable avec ID: " + id));
     }
 
-    /**
-     * Récupérer toutes les lignes de facture
-     */
     @Override
     @Transactional(readOnly = true)
     public List<LigneFactureEntity> getAllLignesFacture() {
         return ligneFactureRepository.findAll();
     }
 
-    /**
-     * Récupérer les lignes d’une facture
-     */
     @Override
     @Transactional(readOnly = true)
     public List<LigneFactureEntity> getLignesByFactureId(Integer factureId) {
@@ -49,7 +42,7 @@ public class LigneFactureService implements LigneFactureManager {
     }
 
     /**
-     * Ajouter une ligne de facture à partir d’une ligne de bon de livraison
+     * ✅ Ajouter une ligne de facture avec remise
      */
     @Override
     @Transactional
@@ -66,37 +59,35 @@ public class LigneFactureService implements LigneFactureManager {
             throw new IllegalStateException("La ligne de bon de livraison n'est pas liée à une ligne de commande.");
         }
 
-        // Calcul des totaux
-        Double totalHT = ligneBonLivraison.getTotalHT();
-        Double totalTVA = ligneBonLivraison.getTotalTVA();
-        Double totalTTC = ligneBonLivraison.getTotalTTC();
+        // ✅ Récupérer les valeurs avec remise depuis LigneBonLivraison
+        Double totalHT = ligneBonLivraison.getTotalHT() != null ? ligneBonLivraison.getTotalHT() : 0.0;
+        Double totalTVA = ligneBonLivraison.getTotalTVA() != null ? ligneBonLivraison.getTotalTVA() : 0.0;
+        Double totalTTC = ligneBonLivraison.getTotalTTC() != null ? ligneBonLivraison.getTotalTTC() : 0.0;
+        Double remiseAppliquee = ligneBonLivraison.getRemiseAppliquee() != null ? ligneBonLivraison.getRemiseAppliquee() : 0.0;
+        Double montantRemise = ligneBonLivraison.getMontantRemise() != null ? ligneBonLivraison.getMontantRemise() : 0.0;
 
-        // Construction de la ligne de facture
+        // ✅ Construction de la ligne de facture avec remise
         LigneFactureEntity nouvelleLigne = LigneFactureEntity.builder()
                 .facture(facture)
                 .ligneBonLivraison(ligneBonLivraison)
                 .ligneCommande(ligneCommande)
-                .totalHT(totalHT)
-                .totalTVA(totalTVA)
-                .totalTTC(totalTTC)
+                .totalHT(arrondir(totalHT))
+                .totalTVA(arrondir(totalTVA))
+                .totalTTC(arrondir(totalTTC))
+                .remiseAppliquee(remiseAppliquee)
+                .montantRemise(arrondir(montantRemise))
                 .build();
 
-        // Enregistrement
         LigneFactureEntity saved = ligneFactureRepository.save(nouvelleLigne);
 
-        // Recalcul de la facture
         recalculerTotauxFacture(factureId);
 
         return saved;
     }
 
-    /**
-     * Supprimer une ligne de facture
-     */
     @Override
     @Transactional
     public void deleteLigneFacture(Integer id) {
-
         LigneFactureEntity ligne = ligneFactureRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ligne facture introuvable"));
 
@@ -108,10 +99,9 @@ public class LigneFactureService implements LigneFactureManager {
     }
 
     /**
-     * Recalcul total facture
+     * ✅ Recalcul total facture avec remise
      */
     private void recalculerTotauxFacture(Integer factureId) {
-
         FactureEntity facture = factureRepository.findById(factureId)
                 .orElseThrow(() -> new RuntimeException("Facture introuvable avec ID : " + factureId));
 
@@ -119,16 +109,23 @@ public class LigneFactureService implements LigneFactureManager {
 
         double totalHT = 0.0;
         double totalTVA = 0.0;
+        double totalRemise = 0.0;
 
         for (LigneFactureEntity l : lignes) {
-            totalHT += l.getTotalHT();
-            totalTVA += l.getTotalTVA();
+            totalHT += l.getTotalHT() != null ? l.getTotalHT() : 0.0;
+            totalTVA += l.getTotalTVA() != null ? l.getTotalTVA() : 0.0;
+            totalRemise += l.getMontantRemise() != null ? l.getMontantRemise() : 0.0;
         }
 
-        facture.setTotalHT(totalHT);
-        facture.setTotalTVA(totalTVA);
-        facture.setTotalTTC(totalHT + totalTVA);
+        facture.setTotalHT(arrondir(totalHT));
+        facture.setTotalTVA(arrondir(totalTVA));
+        facture.setTotalTTC(arrondir(totalHT + totalTVA));
+        facture.setTotalRemise(arrondir(totalRemise));
 
         factureRepository.save(facture);
+    }
+
+    private double arrondir(double valeur) {
+        return Math.round(valeur * 100.0) / 100.0;
     }
 }

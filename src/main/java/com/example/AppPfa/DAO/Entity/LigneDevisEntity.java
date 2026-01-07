@@ -41,4 +41,7 @@ public class LigneDevisEntity {
 
     @Column(nullable = false)
     private Double totalTTC;
+    @Column(nullable = false)
+    private Double remisePourcentage = 0.0;
+
 }

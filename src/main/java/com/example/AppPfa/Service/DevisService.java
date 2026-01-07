@@ -31,7 +31,7 @@ public class DevisService implements DevisManager {
     public DevisEntity addDevis(DevisEntity devisEntity) {
         // Génération numéro unique DV-2025-XX
         int year = LocalDate.now().getYear();
-        long countThisYear = devisRepository.countByYear(year); // Méthode à créer dans le repository
+        long countThisYear = devisRepository.countByYear(year);
         String numero = String.format("DV-%d-%02d", year, countThisYear + 1);
         devisEntity.setNumeroDevis(numero);
 
@@ -51,6 +51,17 @@ public class DevisService implements DevisManager {
                     ligne.setProduit(produit);
                 }
                 ligne.setDevis(devisEntity);
+
+                // ✅ التأكد من القيم الافتراضية
+                if (ligne.getRemisePourcentage() == null) {
+                    ligne.setRemisePourcentage(0.0);
+                }
+                if (ligne.getQuantite() == null) {
+                    ligne.setQuantite(0.0);
+                }
+                if (ligne.getPrixUnitaire() == null) {
+                    ligne.setPrixUnitaire(0.0);
+                }
             }
         }
 
@@ -85,6 +96,18 @@ public class DevisService implements DevisManager {
                     ligne.setProduit(produit);
                 }
                 ligne.setDevis(existing);
+
+                // ✅ التأكد من القيم الافتراضية
+                if (ligne.getRemisePourcentage() == null) {
+                    ligne.setRemisePourcentage(0.0);
+                }
+                if (ligne.getQuantite() == null) {
+                    ligne.setQuantite(0.0);
+                }
+                if (ligne.getPrixUnitaire() == null) {
+                    ligne.setPrixUnitaire(0.0);
+                }
+
                 existing.getLignesDevis().add(ligne);
             }
         }
@@ -108,22 +131,43 @@ public class DevisService implements DevisManager {
     public void calculerTotauxDevis(DevisEntity devisEntity) {
         double totalHT = 0;
         double totalTTC = 0;
+        double totalRemise = 0;
 
         if (devisEntity.getLignesDevis() != null) {
             for (LigneDevisEntity ligne : devisEntity.getLignesDevis()) {
                 if (ligne.getProduit() != null) {
-                    double ht = ligne.getQuantite() * ligne.getPrixUnitaire();
-                    double ttc = ht * (1 + ligne.getProduit().getTva() / 100);
-                    ligne.setTotalHT(ht);
-                    ligne.setTotalTTC(ttc);
+                    double quantite = ligne.getQuantite() != null ? ligne.getQuantite() : 0.0;
+                    double prixUnitaire = ligne.getPrixUnitaire() != null ? ligne.getPrixUnitaire() : 0.0;
 
+                    // Calcul HT avant remise
+                    double htBrut = quantite * prixUnitaire;
+
+                    // Appliquer remise %
+                    Double remise = ligne.getRemisePourcentage() != null ? ligne.getRemisePourcentage() : 0.0;
+                    if (remise < 0) remise = 0.0;
+                    if (remise > 100) remise = 100.0;
+
+                    double montantRemise = htBrut * remise / 100;
+                    double ht = htBrut - montantRemise;
+
+                    // Calcul TTC avec TVA du produit
+                    double tva = ligne.getProduit().getTva() != null ? ligne.getProduit().getTva() : 0.0;
+                    double ttc = ht * (1 + tva / 100);
+
+                    // Mettre à jour la ligne
+                    ligne.setTotalHT(Math.round(ht * 100.0) / 100.0);
+                    ligne.setTotalTTC(Math.round(ttc * 100.0) / 100.0);
+
+                    // Ajouter au total du devis
                     totalHT += ht;
                     totalTTC += ttc;
+                    totalRemise += montantRemise;
                 }
             }
         }
 
-        devisEntity.setTotalHT(totalHT);
-        devisEntity.setTotalTTC(totalTTC);
+        devisEntity.setTotalHT(Math.round(totalHT * 100.0) / 100.0);
+        devisEntity.setTotalTTC(Math.round(totalTTC * 100.0) / 100.0);
+        devisEntity.setTotalRemise(Math.round(totalRemise * 100.0) / 100.0);
     }
 }

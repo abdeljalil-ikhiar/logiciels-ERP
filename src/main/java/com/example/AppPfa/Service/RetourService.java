@@ -103,7 +103,7 @@ public class RetourService implements RetourManager {
     }
 
     // ========================================================================
-    // 3. TRAITEMENT DES LIGNES CLIENT - ✅ CORRIGÉ POUR ÉCHANGE
+    // 3. TRAITEMENT DES LIGNES CLIENT  (INTÈGRE LA REMISE DU BL)
     // ========================================================================
     private void processLignesClient(RetourProduitEntity retour, List<Map<String, Object>> lignesData) {
         double totalHT = 0.0;
@@ -114,7 +114,7 @@ public class RetourService implements RetourManager {
 
         for (Map<String, Object> data : lignesData) {
             Integer ligneBlId = getInteger(data, "ligneBonLivraisonId");
-            Double quantite = getDouble(data, "quantiteRetournee");
+            Double quantiteRetournee = getDouble(data, "quantiteRetournee");
             String observation = getString(data, "observation");
             String etatProduitStr = getString(data, "etatProduit");
             String actionRetourStr = getString(data, "actionRetour");
@@ -122,7 +122,7 @@ public class RetourService implements RetourManager {
             if (ligneBlId == null) {
                 throw new RuntimeException("ID de ligne BL manquant");
             }
-            if (quantite == null || quantite <= 0) {
+            if (quantiteRetournee == null || quantiteRetournee <= 0) {
                 throw new RuntimeException("Quantité invalide pour ligne BL ID: " + ligneBlId);
             }
 
@@ -130,7 +130,7 @@ public class RetourService implements RetourManager {
                     .orElseThrow(() -> new RuntimeException("Ligne BL introuvable: " + ligneBlId));
 
             // ═══════════════════════════════════════════════════════════════
-            // ✅ LOGIQUE CLÉ : Déterminer le produit RÉELLEMENT LIVRÉ
+            // ✅ Déterminer le produit réellement livré (échange ou non)
             // ═══════════════════════════════════════════════════════════════
             LigneBonSortieEntity ligneBonSortie = ligneBL.getLigneBonSortie();
             ProduitEntity produitARetourner;
@@ -138,26 +138,20 @@ public class RetourService implements RetourManager {
             boolean wasEchange = false;
 
             if (ligneBonSortie != null && ligneBonSortie.getProduitEchange() != null) {
-                // ✅ CAS ÉCHANGE : Le client a reçu le produit d'échange
                 produitARetourner = ligneBonSortie.getProduitEchange();
                 produitOriginalCommande = ligneBL.getLigneCommande().getProduit();
                 wasEchange = true;
 
-                log.info("🔄 ÉCHANGE DÉTECTÉ pour ligne BL {}:", ligneBlId);
-                log.info("   📦 Produit commandé  : {} ({})",
-                        produitOriginalCommande.getReferences(),
-                        produitOriginalCommande.getDesignation());
-                log.info("   🔄 Produit livré     : {} ({}) ← CELUI QUI REVIENT",
-                        produitARetourner.getReferences(),
+                log.info("🔄 ECHANGE (Retour) BL {} - Cmd: {} -> Livré: {}",
+                        ligneBlId,
+                        produitOriginalCommande.getDesignation(),
                         produitARetourner.getDesignation());
             } else {
-                // ✅ CAS NORMAL : Le client a reçu le produit de la commande
                 produitARetourner = ligneBL.getLigneCommande().getProduit();
                 produitOriginalCommande = produitARetourner;
 
-                log.info("📦 SORTIE NORMALE pour ligne BL {}:", ligneBlId);
-                log.info("   📦 Produit : {} ({}) ← CELUI QUI REVIENT",
-                        produitARetourner.getReferences(),
+                log.info("📦 Sortie normale (Retour) BL {} - Produit: {}",
+                        ligneBlId,
                         produitARetourner.getDesignation());
             }
 
@@ -165,25 +159,42 @@ public class RetourService implements RetourManager {
                 throw new RuntimeException("Produit introuvable dans ligne BL: " + ligneBlId);
             }
 
-            // Prix et TVA du produit retourné
-            Double prixUnitaireHT = ligneBL.getLigneCommande().getPrixUnitaire();
-            if (prixUnitaireHT == null) prixUnitaireHT = 0.0;
+            // ═══════════════════════════════════════════════════════════════
+            // ✅ CALCUL PRIX UNIT NET HT (APRÈS REMISE) À PARTIR DU BL
+            //    → pour que le retour rembourse le montant remisé
+            // ═══════════════════════════════════════════════════════════════
+            Double totalHTLigneBL = ligneBL.getTotalHT() != null ? ligneBL.getTotalHT() : 0.0;
+            Double quantiteLivreeBL = (ligneBL.getLigneBonSortie() != null
+                    && ligneBL.getLigneBonSortie().getQuantiteSortie() != null)
+                    ? ligneBL.getLigneBonSortie().getQuantiteSortie()
+                    : null;
+
+            Double prixUnitaireNetHT;
+            if (quantiteLivreeBL != null && quantiteLivreeBL > 0) {
+                // ✅ Prix unitaire NET (après remise)
+                prixUnitaireNetHT = totalHTLigneBL / quantiteLivreeBL;
+            } else {
+                // Fallback: prix unitaire de la commande (sans remise)
+                prixUnitaireNetHT = ligneBL.getLigneCommande().getPrixUnitaire() != null
+                        ? ligneBL.getLigneCommande().getPrixUnitaire()
+                        : 0.0;
+            }
 
             double tvaPourcent = (produitARetourner.getTva() != null) ? produitARetourner.getTva() : 20.0;
 
             // ═══════════════════════════════════════════════════════════════
-            // ✅ CRÉER LA LIGNE RETOUR AVEC LE BON PRODUIT
+            // ✅ CRÉER LIGNE RETOUR (AVEC PRIX NET)
             // ═══════════════════════════════════════════════════════════════
             LigneRetourEntity ligne = LigneRetourEntity.builder()
                     .retourProduit(retour)
-                    .produit(produitARetourner)                    // ✅ LE PRODUIT QUI REVIENT EN STOCK
-                    .produitEchange(wasEchange ? produitOriginalCommande : null)  // Produit original si échange
-                    .quantiteRetournee(quantite)
-                    .prixUnitaire(prixUnitaireHT)
-                    .prixUnitaireHT(prixUnitaireHT)
+                    .produit(produitARetourner)
+                    .produitEchange(wasEchange ? produitOriginalCommande : null)
+                    .quantiteRetournee(quantiteRetournee)
+                    .prixUnitaire(prixUnitaireNetHT)   // pour info
+                    .prixUnitaireHT(prixUnitaireNetHT) // utilisé dans le calcul
                     .tva(tvaPourcent)
                     .observation(observation != null ? observation : "")
-                    .isEchange(wasEchange)                         // ✅ Marquer si c'était un échange
+                    .isEchange(wasEchange)
                     .etatProduit(parseEnum(
                             LigneRetourEntity.EtatProduit.class,
                             etatProduitStr,
@@ -199,6 +210,7 @@ public class RetourService implements RetourManager {
                     .totalTTC(0.0)
                     .build();
 
+            // ➜ Calculer totaux à partir du prix NET HT
             calculerTotauxLigne(ligne);
 
             ligne = ligneRetourRepository.save(ligne);
@@ -208,8 +220,9 @@ public class RetourService implements RetourManager {
             totalTVA += ligne.getTotalTVA();
             totalTTC += ligne.getTotalTTC();
 
-            log.debug("✅ Ligne retour créée - Produit: {}, Qté: {}, Échange: {}, Total TTC: {}",
-                    produitARetourner.getDesignation(), quantite, wasEchange, ligne.getTotalTTC());
+            log.debug("✅ Ligne retour créée - Produit: {}, Qté: {}, Total HT: {}, TTC: {}",
+                    produitARetourner.getDesignation(), quantiteRetournee,
+                    ligne.getTotalHT(), ligne.getTotalTTC());
         }
 
         retour.setTotalHT(arrondir(totalHT));
@@ -218,7 +231,7 @@ public class RetourService implements RetourManager {
     }
 
     // ========================================================================
-    // 4. TRAITEMENT DES LIGNES FOURNISSEUR
+    // 4. TRAITEMENT DES LIGNES FOURNISSEUR (inchangé)
     // ========================================================================
     private void processLignesFournisseur(RetourProduitEntity retour, List<Map<String, Object>> lignesData) {
         double totalHT = 0.0;
@@ -301,7 +314,7 @@ public class RetourService implements RetourManager {
     }
 
     // ========================================================================
-    // 5. VALIDATION (MISE À JOUR STOCK) - ✅ CORRIGÉ
+    // 5. VALIDATION / ANNULATION  (inchangé)
     // ========================================================================
     @Override
     public RetourProduitEntity validerRetour(Integer retourId, boolean genererAvoir) {
@@ -317,10 +330,6 @@ public class RetourService implements RetourManager {
         for (LigneRetourEntity ligne : retour.getLignesRetour()) {
 
             if (retour.getTypeRetour() == RetourProduitEntity.TypeRetour.RETOUR_CLIENT) {
-                // ═══════════════════════════════════════════════════════════════
-                // ✅ RETOUR CLIENT : Le produit stocké dans ligne.produit REVIENT
-                // ═══════════════════════════════════════════════════════════════
-
                 if (ligne.getEtatProduit() == LigneRetourEntity.EtatProduit.BON_ETAT ||
                         ligne.getActionRetour() == LigneRetourEntity.ActionRetour.REINTEGRATION_STOCK) {
 
@@ -329,7 +338,7 @@ public class RetourService implements RetourManager {
                             ligne.getQuantiteRetournee());
 
                     stockManager.ajouterStock(
-                            ligne.getProduit().getId(),      // ✅ Le produit qui revient (échange ou original)
+                            ligne.getProduit().getId(),
                             ligne.getQuantiteRetournee(),
                             MouvementStockEntity.TypeMouvement.RETOUR_CLIENT,
                             "Retour Client " + retour.getNumeroRetour() +
@@ -337,10 +346,6 @@ public class RetourService implements RetourManager {
                     );
                 }
 
-                // ═══════════════════════════════════════════════════════════════
-                // ✅ SI NOUVEAU ÉCHANGE DEMANDÉ LORS DU RETOUR
-                // (le client retourne et veut un autre produit à la place)
-                // ═══════════════════════════════════════════════════════════════
                 if (ligne.getActionRetour() == LigneRetourEntity.ActionRetour.ECHANGE
                         && ligne.getProduitEchange() != null) {
 
@@ -362,9 +367,6 @@ public class RetourService implements RetourManager {
                 }
 
             } else if (retour.getTypeRetour() == RetourProduitEntity.TypeRetour.RETOUR_FOURNISSEUR) {
-                // ═══════════════════════════════════════════════════════════════
-                // ✅ RETOUR FOURNISSEUR : Le produit SORT du stock
-                // ═══════════════════════════════════════════════════════════════
 
                 log.info("📤 Retour fournisseur: {} (-{})",
                         ligne.getProduit().getReferences(),
@@ -379,7 +381,6 @@ public class RetourService implements RetourManager {
             }
         }
 
-        // Générer avoir si demandé
         if (genererAvoir) {
             try {
                 AvoirEntity avoir = avoirManager.creerAvoirDepuisRetour(retour);
@@ -400,9 +401,6 @@ public class RetourService implements RetourManager {
         return retourProduitRepository.save(retour);
     }
 
-    // ========================================================================
-    // 6. ANNULATION - ✅ CORRIGÉ
-    // ========================================================================
     @Override
     public RetourProduitEntity annulerRetour(Integer retourId) {
         RetourProduitEntity retour = getRetourById(retourId);
@@ -437,7 +435,6 @@ public class RetourService implements RetourManager {
     private void inverserMouvementStock(RetourProduitEntity retour, LigneRetourEntity ligne) {
         if (retour.getTypeRetour() == RetourProduitEntity.TypeRetour.RETOUR_CLIENT) {
 
-            // Annuler la réintégration (retirer ce qui a été ajouté)
             if (ligne.getEtatProduit() == LigneRetourEntity.EtatProduit.BON_ETAT ||
                     ligne.getActionRetour() == LigneRetourEntity.ActionRetour.REINTEGRATION_STOCK) {
 
@@ -453,7 +450,6 @@ public class RetourService implements RetourManager {
                 );
             }
 
-            // Annuler le nouvel échange (remettre ce qui a été sorti)
             if (ligne.getActionRetour() == LigneRetourEntity.ActionRetour.ECHANGE
                     && ligne.getProduitEchange() != null) {
 
@@ -470,7 +466,6 @@ public class RetourService implements RetourManager {
             }
 
         } else {
-            // Retour fournisseur : remettre en stock
             log.info("🔄 Annulation retour fournisseur: {} (+{})",
                     ligne.getProduit().getReferences(),
                     ligne.getQuantiteRetournee());

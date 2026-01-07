@@ -75,4 +75,10 @@ public class FactureFournisseurEntity {
     public boolean hasPdf() {
         return pdfFile != null && pdfFile.length > 0;
     }
+
+    @OneToMany(mappedBy = "factureFournisseur", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"factureFournisseur"})
+    private List<AvoirEntity> avoirs = new ArrayList<>();
+
+
 }

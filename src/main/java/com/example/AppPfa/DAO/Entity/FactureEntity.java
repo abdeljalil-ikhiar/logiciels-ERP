@@ -26,13 +26,11 @@ public class FactureEntity {
     @Column(nullable = false)
     private LocalDate dateFacture;
 
-    // ✅ Owning side - pas de cascade vers BonLivraison
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "bon_livraison_id", nullable = false, unique = true)
     @JsonIgnoreProperties({"facture", "lignesBonLivraison", "bonSortie"})
     private BonLivraisonEntity bonLivraison;
 
-    // ✅ Cascade ALL + orphanRemoval pour supprimer les lignes automatiquement
     @OneToMany(
             mappedBy = "facture",
             cascade = CascadeType.ALL,
@@ -51,4 +49,13 @@ public class FactureEntity {
 
     @Column(nullable = false)
     private Double totalTTC = 0.0;
+
+    // ✅ NOUVEAU: Total des remises
+    @Column(nullable = false)
+    private Double totalRemise = 0.0;
+
+    @OneToMany(mappedBy = "facture", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"facture"})
+    @ToString.Exclude
+    private List<AvoirEntity> avoirs = new ArrayList<>();
 }

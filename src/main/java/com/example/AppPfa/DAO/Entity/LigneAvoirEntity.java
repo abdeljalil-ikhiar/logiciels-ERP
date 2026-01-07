@@ -52,6 +52,16 @@ public class LigneAvoirEntity {
     @Builder.Default
     private Double totalTTC = 0.0;
 
+    // ✅ NOUVEAU: Remise appliquée (pourcentage)
+    @Column(nullable = false)
+    @Builder.Default
+    private Double remiseAppliquee = 0.0;
+
+    // ✅ NOUVEAU: Montant de la remise
+    @Column(nullable = false)
+    @Builder.Default
+    private Double montantRemise = 0.0;
+
     @Column(length = 255)
     private String description;
 }

@@ -1,4 +1,3 @@
-// LigneCommandeEntity.java
 package com.example.AppPfa.DAO.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -31,24 +30,26 @@ public class LigneCommandeEntity {
     private ProduitEntity produit;
 
     @Column(nullable = false)
-    private Double quantite;
+    private Double quantite = 0.0;
 
     @Column(nullable = false)
-    private Double prixUnitaire;
+    private Double prixUnitaire = 0.0;
+
+    // ✅ إضافة الخصم
+    @Column(nullable = false)
+    private Double remisePourcentage = 0.0;
 
     @Column(nullable = false)
-    private Double totalHT;
+    private Double totalHT = 0.0;
 
     @Column(nullable = false)
-    private Double totalTTC;
+    private Double totalTTC = 0.0;
 
-    // ✅ CORRECTION : Enlever cascade et orphanRemoval
     @OneToMany(mappedBy = "ligneCommande", fetch = FetchType.LAZY)
     @JsonIgnore
     @ToString.Exclude
     private List<LigneBonSortieEntity> lignesBonSortie = new ArrayList<>();
 
-    // ✅ CORRECTION : Enlever cascade et orphanRemoval
     @OneToMany(mappedBy = "ligneCommande", fetch = FetchType.LAZY)
     @JsonIgnore
     @ToString.Exclude
